@@ -1,0 +1,7 @@
+cromelech.sqlalchemy
+#########################
+
+cromlech.sqlalchemy provides utility methods and components for application
+built upon the cromlech stack and using SQLAlchemy
+
+
