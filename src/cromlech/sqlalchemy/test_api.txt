@@ -16,7 +16,7 @@ Lets simulate wsqi environnement::
 You may configure connexion through wsgi environnement :
 
     >>> environ['user_db'] =  'sqlite:///%s/users.db' % working_dir
-    >>> environ['products_db'] = 'sqlite:///%s/products.db' % working_dir
+    >>> environ['store_db'] = 'sqlite:///%s/store.db' % working_dir
 
 
 Model
@@ -27,6 +27,14 @@ Let's use declarative extension::
     >>> from sqlalchemy.ext.declarative import declarative_base
 
     >>> UserBase = declarative_base()
+
+In SQLAlchemy you would declare wich engine the database is bound to. In our
+case the url will come in environ with the first connection so we deffer
+this to the moment when engine will be created. The package provides a method
+for that::
+
+   >>> from cromlech.sqlalchemy import deferred_bind
+   >>> deferred_bind(UserBase.metadata, 'user_db')
     
 We can define our SQLAlchemy model::
 
@@ -35,21 +43,30 @@ We can define our SQLAlchemy model::
     ...     __tablename__ = 'test_users'
     ...     id = Column('id', Integer, primary_key=True)
     ...     name = Column('name', String(50))
-
+    ...
+    ...     def __repr__(self):
+    ...         return "User(%d, '%s')" % (self.id, self.name)
 
 Controller
 ==============
 
-To do any operation we will have use SQLAlchemySession context manager.
-
+To do any operation we will have use SQLAlchemySession context manager
+providing an engine name::
 
     >>> from cromlech.sqlalchemy import SQLAlchemySession, get_session
 
-Eg. to create our tables::
+Typically first request may create our tables::
 
     >>> with SQLAlchemySession(environ, 'user_db', 
-    ...                                       UserBase.metadata) as session:
+    ...                          two_phase = False) as session:
     ...     UserBase.metadata.create_all()
+    ...     print session.query(User).all()
+    []
+
+Transaction of database is ruled by the general transaction package::
+
+    >>> import transaction
+    >>> transaction.commit()
 
 Inside the context you can also fetch the session by its configuration name,
 this is convenient from anywhere in the code, eg a fonction::
@@ -59,10 +76,10 @@ this is convenient from anywhere in the code, eg a fonction::
     ...     session.add(User(id=id, name=name))
 
     >>> with SQLAlchemySession(environ, 'user_db', 
-    ...                                       UserBase.metadata) as session:
+    ...                          two_phase = False) as session:
     ...     add_user(1, 'bob')
     ...     print session.query(User).all()
-    XXXX
+    [User(1, 'bob')]
 
 
 Transaction
@@ -70,15 +87,133 @@ Transaction
 
 For this chapter let's assume we are inside a with SQLAlchemySession clause::
 
-    >>> SQLAlchemySession(environ, 'user_db', UserBase.metadata).__enter__()
+    >>> ctxmanager = SQLAlchemySession(environ, 'user_db', two_phase = False)
+    >>> session = ctxmanager.__enter__()
 
 Transaction are linked to zope transaction using zope.sqlalchemy, all operations
-above are not yet commited::
+above are not yet commited. Let's abort to see bob is not present no more::
 
+    >>> transaction.abort()
+    
+    >>> print session.query(User).all()
+    []
 
+Now add it again an commit so that it's ok::
 
-So let's commit::
+    >>> transaction.commit()
+    >>> add_user(1, 'bob')
+    >>> transaction.commit()
+    >>> print session.query(User).all()
+    [User(1, 'bob')]
 
+Now we really are in a new transaction::
+
+    >>> transaction.abort()
+    >>> print session.query(User).all()
+    [User(1, 'bob')]
+
+Let's end our session for now ::
+
+   >>> ctxmanager.__exit__(None, None, None)
 
 More than one database
 ========================
+
+We can use more than one database, Let's define another
+model in another database:
+
+    >>> StoreBase = declarative_base()
+    
+We can define our SQLAlchemy model::
+
+    >>> class Product(StoreBase):
+    ...     __tablename__ = 'test_products'
+    ...     id = Column('id', Integer, primary_key=True)
+    ...     name = Column('name', String(50))
+    ...
+    ...     def __repr__(self):
+    ...         return "Product(%d, '%s')" % (self.id, self.name)
+
+And bind::
+
+    >>> deferred_bind(StoreBase.metadata, 'store_db')
+
+Create tables::
+
+    >>> with transaction:
+    ...     with SQLAlchemySession(environ, 'store_db', 
+    ...                               two_phase = False) as session:
+    ...         StoreBase.metadata.create_all()
+
+and an product adder::
+
+    >>> def add_product(id, name):
+    ...     session = get_session('store_db')
+    ...     session.add(Product(id=id, name=name))
+
+We may do operations in databases using our objects::
+
+    >>> with transaction:
+    ...   with SQLAlchemySession(environ, 'store_db', 
+    ...                          two_phase = False) as session:
+    ...     with SQLAlchemySession(environ, 'user_db', 
+    ...                            two_phase = False) as session:
+    ...         add_user(2, 'juan')
+    ...         add_product(1, 'table')
+
+It works :
+
+    >>> with SQLAlchemySession(environ, 'user_db', 
+    ...                        two_phase = False) as session:
+    ...     session.query(User).all()
+    [User(1, 'bob'), User(2, 'juan')]
+
+    >>> with SQLAlchemySession(environ, 'store_db', 
+    ...                        two_phase = False) as session:
+    ...     session.query(Product).all()
+    [Product(1, 'table')]
+
+More than one metadata
+=======================
+
+Now we may also bind another metadata to same database, and this work
+even if it's already initialised::
+
+    >>> GroupBase = declarative_base()
+
+    >>> class Group(GroupBase):
+    ...     __tablename__ = 'test_groups'
+    ...     id = Column('id', Integer, primary_key=True)
+    ...     name = Column('name', String(50))
+    ...
+    ...     def __repr__(self):
+    ...         return "Group(%d, '%s')" % (self.id, self.name)
+
+    >>> deferred_bind(GroupBase.metadata, 'user_db')
+
+    >>> with transaction:
+    ...     with SQLAlchemySession(environ, 'user_db', 
+    ...                               two_phase = False) as session:
+    ...         GroupBase.metadata.create_all()
+    ...         session.add(Group(id=1, name='them'))
+    ...         session.query(Group).all()
+    [Group(1, 'them')]
+
+
+Errors
+=========
+
+Calling an engine that does not exists without a config fails !
+
+::
+    >>> from cromlech.sqlalchemy.components import get_engine
+
+    >>> get_engine('spam_db')
+    Traceback (most recent call last):
+    ...
+    KeyError: 'No dbengine named spam_db and no config given'
+    >>> get_engine('spam_db', environ)
+    Traceback (most recent call last):
+    ...
+    KeyError: 'No dbengine named spam_db and no config given'
+

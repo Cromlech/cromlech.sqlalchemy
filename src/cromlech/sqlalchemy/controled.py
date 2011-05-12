@@ -2,9 +2,29 @@
 
 import transaction
 import threading
-from components import get_engine
-from sqlalchemy.orm import sessionmaker
+from components import get_engine, metadata_base_registry
+from sqlalchemy.orm import sessionmaker, scoped_session
 from zope.sqlalchemy import ZopeTransactionExtension
+
+
+def deferred_bind(metadata, name):
+    """tells that Metadata must be bind to engine corresponding to
+    database config registered under name
+
+    If dbengine is not yet created,
+    the binding will be done as soon as dbengine will be created
+    """
+    if name not in metadata_base_registry:
+        metadata_base_registry[name] = set()
+    if metadata not in metadata_base_registry:
+        metadata_base_registry[name].add(metadata)
+        try:
+            engine = get_engine(name)
+            metadata.bind(engine)
+        except KeyError:
+            # engine does not exist, binding will be done at creation time
+            pass
+            
 
 
 class SQLAlchemySession(object):
@@ -15,8 +35,7 @@ class SQLAlchemySession(object):
     Parameters for connection are taken from wsgi environ under name
     """
 
-    def __init__(self, environ, name, metadata,
-                                      transaction_manager=None,
+    def __init__(self, environ, name, transaction_manager=None,
                                       two_phase=True):
         """
         name is the name of connection parameters in wsgi environ.
@@ -29,7 +48,6 @@ class SQLAlchemySession(object):
         """
         self.environ = environ
         self.name = name
-        self.metadata = metadata
         self.two_phase = two_phase
         if transaction_manager is None:
             transaction_manager = transaction.manager
@@ -37,14 +55,12 @@ class SQLAlchemySession(object):
 
     def __enter__(self):
         """begin session scope"""
-        conn_url = self.environ[self.name]
         # get the engine
-        self.engine = get_engine(conn_url)
-        # make a session, not a scoped session has we name sessions
-        self.session = sessionmaker(bind=self.engine,
-            twophase=self.two_phase, extension=ZopeTransactionExtension())()
-        # bind metadata
-        self.metadata.bind = self.engine
+        self.engine = get_engine(self.name, self.environ)
+        # make a session, we make a scoped session in case we want to
+        # work on same connection later
+        self.session =  scoped_session(sessionmaker(bind=self.engine,
+            twophase=self.two_phase, extension=ZopeTransactionExtension()))
         # add to thread
         set_session(self.name, self.session)
         return self.session

@@ -18,9 +18,9 @@ class EngineServer(object):
         self.engine = engine
 
 
-def create_engine(url):
+def create_engine(name, url):
     """create an engine server and register it under a name
-    corresponding to connexion url
+    corresponding to connexion url. Also bind all known metadata to it.
 
     return the created engine for convenience use.
 
@@ -29,14 +29,29 @@ def create_engine(url):
     engine = sqlalchemy.create_engine(url, convert_unicode=True)
     gsm = getGlobalSiteManager()
     gsm.registerUtility(EngineServer(engine), IEngineServer, name=url)
+    # bind metadata to this engine
+    for m in metadata_base_registry.get(name, []):
+        m.bind = engine
     return engine
 
 
-def get_engine(url):
-    """get engine at the cost, if needed, of creating it"""
-    if not isinstance(url, unicode):
-        url = unicode(url, 'utf-8')
-    engine = queryUtility(IEngineServer, name=url)
+def get_engine(name, environ=None):
+    """get engine corresponding to name
+
+    If needed and if environ as a name key it is created, else a KeyError
+    is raised"""
+    engine = queryUtility(IEngineServer, name=name)
     if engine is None:
-        engine = create_engine(url)
+        if environ is not None and name in environ:
+            url = environ[name]
+            if not isinstance(url, unicode):
+                url = unicode(url, 'utf-8')
+            engine = create_engine(name, url)
+        else:
+            raise KeyError('No dbengine named %s and no config given' % name)
+    else:
+        engine = engine.engine
     return engine
+
+# registration of metadata with engines
+metadata_base_registry = dict()
