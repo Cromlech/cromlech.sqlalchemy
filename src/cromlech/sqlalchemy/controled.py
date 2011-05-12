@@ -2,9 +2,13 @@
 
 import transaction
 from components import get_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import session, sessionmaker
 from zope.sqlalchemy import ZopeTransactionExtension
 
+def session_maker():
+    """specific session maker"""
+    self.session = scoped_session(sessionmaker(bind=engine,
+        twophase=two_phase, extension=ZopeTransactionExtension()))
 
 class SQLAlchemySession(object):
     """Controled execution using a SQLAlchemy-controller
@@ -14,8 +18,8 @@ class SQLAlchemySession(object):
     Parameters for connection are taken from wsgi environ under name
     """
 
-    def __init__(self, environ, name, bases,
-                        transaction_manager = None, two_phase = True):
+    def __init__(self, environ, name, transaction_manager = None,
+                                      two_phase = True):
         """
         name is the name of connection parameters in wsgi environ.
 
@@ -26,7 +30,6 @@ class SQLAlchemySession(object):
         """
         self.environ = environ
         self.name = name
-        self.bases = bases
         if transaction_manager is None:
             transaction_manager = transaction.manager
         self.tm = transaction_manager
@@ -35,9 +38,9 @@ class SQLAlchemySession(object):
         """begin session scope"""
         conn_url = self.environ['name']
         # get the engine
-        self.engine = get_engine(conn_url, self.bases)
+        self.engine = get_engine(conn_url)
         # make a session
-        self.session = scoped_session(sessionmaker(bind=engine,
+        self.session = session(sessionmaker(bind=engine,
             twophase=two_phase, extension=ZopeTransactionExtension()))
         # add to thread
         set_session(self.name, self.session)

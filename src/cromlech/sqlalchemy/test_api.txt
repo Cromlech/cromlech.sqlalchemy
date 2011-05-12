@@ -1,5 +1,47 @@
+Test setup
+===========
 
-Session Manager
+We get a temporary dir to place our databases::
+
+    >>> import tempfile
+    >>> working_dir = tempfile.mkdtemp('cromlech-sqlalchemy-test')
+
+Configuration
+===============
+
+Lets simulate wsqi environnement::
+
+    >>> environ = dict()
+
+You may configure connexion through wsgi environnement :
+
+    >>> environ['user_db'] = 'sqlite://%s/users.db' % working_dir
+    >>> environ['products_db'] = 'sqlite://%s/products.db' % working_dir
+
+
+Model
 ======================
 
-FIXME
+cromlech.sqlalchemy is though to be used with declarative extension.
+
+When we create our model we have to use a special declarative_base function 
+where we can pass a dbengine parameter to specify engine::
+
+    >>> from sqlalchemy.ext.declarative import declarative_base
+
+    >>> UserBase = declarative_base(dbengine='user_db')
+    
+We can define our SQLAlchemy model::
+
+    >>> class User(UserBase):
+    ...     __tablename__ = 'test_users'
+    ...     id = Column('id', Integer, primary_key=True)
+    ...     name = Column('name', String(50))
+
+We create the table as its our first use :
+
+    >>> UserBase.metadata.create_all()
+
+
+More than one database
+========================

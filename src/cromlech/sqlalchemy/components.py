@@ -1,6 +1,6 @@
 import zope.interface
 from zope.comonent import getGlobalSiteManager, queryUtility
-from sqlalchemy import create_engine
+import sqlalchemy
 
 class IEngineServer(zope.interface.Interface):
     """An engine server just serve a configured sqlAlchemy engine
@@ -17,7 +17,7 @@ class EngineServer(object)
         self.engine = engine
 
 
-def create_engine(url, bases):
+def create_engine(url):
     """create an engine server and register it under a name
     corresponding to connexion url
 
@@ -25,17 +25,13 @@ def create_engine(url, bases):
 
     bases are all the associated declarative bases that will be initialized.
     """
-    engine = create_engine(url, convert_unicode=True)
-    if not hasattr(bases, '__iter__'):
-        bases = [bases,]
-    for base in bases:
-        base.create_all(engine)
+    engine = sqlalchemy.create_engine(url, convert_unicode=True)
     gsm = getGlobalSiteManager()
     gsm.registerUtility(EngineServer(engine), IEngineServer, name=url)
     return engine
 
 
-def get_engine(url, bases):
+def get_engine(url):
     """get engine at the cost, if needed, of creating it"""
     if not isinstance(url, unicode):
         url = unicode(url, 'utf-8')
