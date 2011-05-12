@@ -40,12 +40,12 @@ class SQLAlchemySession(object):
         self.session = scoped_session(sessionmaker(bind=engine,
             twophase=two_phase, extension=ZopeTransactionExtension()))
         # add to thread
-        setSession(self.name, self.session)
+        set_session(self.name, self.session)
 
     def __exit__(self, type, value, traceback):
         """end session scope
         """
-        setSession(self.name, None)
+        set_session(self.name, None)
 
 
 class SessionInfo(threading.local):
@@ -59,7 +59,7 @@ class SessionInfo(threading.local):
 sessioninfo = SessionInfo()
 
 
-def setSession(name, session=None):
+def set_session(name, session=None):
     """set the session in thread"""
     if session is not None:
         sessioninfo.session[name] = session
@@ -67,6 +67,6 @@ def setSession(name, session=None):
         del sessioninfo.session[name]
 
 
-def getSession(name):
+def get_session(name):
     """get SQLAlchemy session by name"""
     return sessioninfo.session[name]

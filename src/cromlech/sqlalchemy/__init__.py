@@ -1,1 +1,1 @@
-from cromlech.zodb.controled import ZodbSite
+from cromlech.sqlalchemy.controled import SQLAlchemySession, get_session
