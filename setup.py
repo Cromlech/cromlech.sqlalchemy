@@ -23,12 +23,12 @@ setup(name='cromlech.sqlalchemy',
                   "for application using the SQLAlchemy",
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("src", 'cromlech', 'sqlalchemy',
-                                         "test_base.txt")).read() + "\n" +
+                                         "test_api.txt")).read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       classifiers=[
         "Programming Language :: Python",
         ],
-      keywords='SQLAlchemy ORM Cromlech',
+      keywords='SQLAlchemy ORM Cromlech',
       author='Dolmen Team',
       author_email='dolmen@list.dolmen-project.org',
       url='http://gitweb.dolmen-project.org',

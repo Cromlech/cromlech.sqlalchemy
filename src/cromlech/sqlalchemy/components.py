@@ -1,6 +1,7 @@
 import zope.interface
-from zope.comonent import getGlobalSiteManager, queryUtility
+from zope.component import getGlobalSiteManager, queryUtility
 import sqlalchemy
+
 
 class IEngineServer(zope.interface.Interface):
     """An engine server just serve a configured sqlAlchemy engine
@@ -8,10 +9,10 @@ class IEngineServer(zope.interface.Interface):
     engine = zope.interface.Attribute("The SQLAlchemy engine")
 
 
-class EngineServer(object)
+class EngineServer(object):
     """Serve a SQLAlchemy engine
     """
-    grok.implements(IEngineServer)
+    zope.interface.implements(IEngineServer)
 
     def __init__(self, engine):
         self.engine = engine
@@ -37,5 +38,5 @@ def get_engine(url):
         url = unicode(url, 'utf-8')
     engine = queryUtility(IEngineServer, name=url)
     if engine is None:
-        engine = create_engine(url, bases)
+        engine = create_engine(url)
     return engine

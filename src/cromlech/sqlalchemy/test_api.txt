@@ -15,32 +15,69 @@ Lets simulate wsqi environnement::
 
 You may configure connexion through wsgi environnement :
 
-    >>> environ['user_db'] = 'sqlite://%s/users.db' % working_dir
-    >>> environ['products_db'] = 'sqlite://%s/products.db' % working_dir
+    >>> environ['user_db'] =  'sqlite:///%s/users.db' % working_dir
+    >>> environ['products_db'] = 'sqlite:///%s/products.db' % working_dir
 
 
 Model
 ======================
 
-cromlech.sqlalchemy is though to be used with declarative extension.
-
-When we create our model we have to use a special declarative_base function 
-where we can pass a dbengine parameter to specify engine::
+Let's use declarative extension::
 
     >>> from sqlalchemy.ext.declarative import declarative_base
 
-    >>> UserBase = declarative_base(dbengine='user_db')
+    >>> UserBase = declarative_base()
     
 We can define our SQLAlchemy model::
 
+    >>> from sqlalchemy import Column, Integer, String
     >>> class User(UserBase):
     ...     __tablename__ = 'test_users'
     ...     id = Column('id', Integer, primary_key=True)
     ...     name = Column('name', String(50))
 
-We create the table as its our first use :
 
-    >>> UserBase.metadata.create_all()
+Controller
+==============
+
+To do any operation we will have use SQLAlchemySession context manager.
+
+
+    >>> from cromlech.sqlalchemy import SQLAlchemySession, get_session
+
+Eg. to create our tables::
+
+    >>> with SQLAlchemySession(environ, 'user_db', 
+    ...                                       UserBase.metadata) as session:
+    ...     UserBase.metadata.create_all()
+
+Inside the context you can also fetch the session by its configuration name,
+this is convenient from anywhere in the code, eg a fonction::
+
+    >>> def add_user(id, name):
+    ...     session = get_session('user_db')
+    ...     session.add(User(id=id, name=name))
+
+    >>> with SQLAlchemySession(environ, 'user_db', 
+    ...                                       UserBase.metadata) as session:
+    ...     add_user(1, 'bob')
+    ...     print session.query(User).all()
+    XXXX
+
+
+Transaction
+=============
+
+For this chapter let's assume we are inside a with SQLAlchemySession clause::
+
+    >>> SQLAlchemySession(environ, 'user_db', UserBase.metadata).__enter__()
+
+Transaction are linked to zope transaction using zope.sqlalchemy, all operations
+above are not yet commited::
+
+
+
+So let's commit::
 
 
 More than one database
