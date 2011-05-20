@@ -35,7 +35,7 @@ def create_engine(name, url):
     return engine
 
 
-def get_engine(name, environ=None):
+def get_engine(name, environ=None, default_url=None):
     """get engine corresponding to name
 
     If needed and if environ as a name key it is created, else a KeyError
@@ -44,6 +44,11 @@ def get_engine(name, environ=None):
     if engine is None:
         if environ is not None and name in environ:
             url = environ[name]
+        elif default_url is not None:
+            url = default_url
+        else:
+            url = None
+        if url is not None:
             if not isinstance(url, unicode):
                 url = unicode(url, 'utf-8')
             engine = create_engine(name, url)

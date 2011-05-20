@@ -1,2 +1,2 @@
-from cromlech.sqlalchemy.controled import (SQLAlchemySession, get_session,
-                                            deferred_bind)
+from cromlech.sqlalchemy.controled import (SQLAlchemySession,
+                          SharedSQLAlchemySession, get_session, deferred_bind)

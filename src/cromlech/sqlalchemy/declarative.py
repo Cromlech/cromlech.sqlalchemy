@@ -30,11 +30,10 @@ def declarative_base(*args, **kwargs):
 
     it the same as original declarative_base with a specific meta
     """
-    new_kwargs = dict(meta = RegisteringMeta)
+    new_kwargs = dict(meta=RegisteringMeta)
     new_kwargs.update((k, v) for k, v in kwargs.items() if k != 'dbengine')
 
     base = declarative_base(*args, **new_kwargs)
     if 'dbengine' in kwargs:
         base.__dbengine__ = kwargs['dbengine']
     return base
-

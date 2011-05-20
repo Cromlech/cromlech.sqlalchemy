@@ -24,7 +24,6 @@ def deferred_bind(metadata, name):
         except KeyError:
             # engine does not exist, binding will be done at creation time
             pass
-            
 
 
 class SQLAlchemySession(object):
@@ -35,20 +34,27 @@ class SQLAlchemySession(object):
     Parameters for connection are taken from wsgi environ under name
     """
 
-    def __init__(self, environ, name, transaction_manager=None,
-                                      two_phase=True):
+    def __init__(self, environ, name, default_url=None,
+                                     transaction_manager=None, two_phase=None):
         """
-        name is the name of connection parameters in wsgi environ.
+        name is the name of connection parameters in wsgi environ
+
+        default url may indicate a default_url if name is not found in environ
+        (eg. a global configuration).
 
         metadata is a SQLAlchemy Metadata which will be associated with
         connection
 
         If transaction_manager is None we will ask the transaction module
         for the current one.
+
+        If two_phase is none, it will be set to true for mysql and postgre
+        false otherwhise.
         """
         self.environ = environ
         self.name = name
         self.two_phase = two_phase
+        self.default_url = default_url
         if transaction_manager is None:
             transaction_manager = transaction.manager
         self.tm = transaction_manager
@@ -56,10 +62,16 @@ class SQLAlchemySession(object):
     def __enter__(self):
         """begin session scope"""
         # get the engine
-        self.engine = get_engine(self.name, self.environ)
+        self.engine = get_engine(self.name, self.environ, self.default_url)
         # make a session, we make a scoped session in case we want to
         # work on same connection later
-        self.session =  scoped_session(sessionmaker(bind=self.engine,
+        if self.two_phase is None:
+            if self.engine.dialect.name in ('postgre', 'postgresql', 'mysql'):
+                self.two_phase = True
+            else :
+                self.two_phase = False
+
+        self.session = scoped_session(sessionmaker(bind=self.engine,
             twophase=self.two_phase, extension=ZopeTransactionExtension()))
         # add to thread
         set_session(self.name, self.session)
@@ -70,6 +82,29 @@ class SQLAlchemySession(object):
         """
         self.session.flush()
         set_session(self.name, None)
+
+
+class SharedSQLAlchemySession(SQLAlchemySession):
+    """like SQLAlchemySession but considering that in a thread
+    a db_name will always be associated with same url
+    so session is opened once
+    """
+
+    def __init__(self, environ, name, *args, **kwargs):
+        self.session = get_session(name)
+        if self.session is None:
+            SQLAlchemySession.__init__(self, environ, name,
+                                                    *args, **kwargs)
+
+    def __enter__(self):
+        if self.session is not None:
+            return self.session
+        else:
+            return SQLAlchemySession.__enter__(self)
+
+    def __exit__(self, type, value, traceback):
+        self.session.flush()
+        # and no session cleaning !
 
 
 class SessionInfo(threading.local):
@@ -93,4 +128,7 @@ def set_session(name, session=None):
 
 def get_session(name):
     """get SQLAlchemy session by name"""
-    return sessioninfo.session[name]
+    if name in sessioninfo.session:
+        return sessioninfo.session[name]
+    else:
+        return None

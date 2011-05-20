@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.1a1dev'
+version = '0.1a1'
 
 install_requires = [
     'setuptools',
@@ -35,12 +35,12 @@ setup(name='cromlech.sqlalchemy',
       license='ZPL',
       packages=find_packages('src', exclude=['ez_setup']),
       package_dir={'': 'src'},
-      namespace_packages=['cromlech',],
+      namespace_packages=['cromlech', ],
       include_package_data=True,
       zip_safe=False,
-      tests_require = tests_require,
-      install_requires = install_requires,
-      extras_require = {'test': tests_require},
+      tests_require=tests_require,
+      install_requires=install_requires,
+      extras_require={'test': tests_require},
       entry_points="""
       # -*- Entry points: -*-
       """,
