@@ -6,21 +6,21 @@ We get a temporary dir to place our databases::
     >>> import tempfile
     >>> working_dir = tempfile.mkdtemp('cromlech-sqlalchemy-test')
 
-Configuration
-===============
 
-Lets simulate wsqi environnement::
+Configuration & registration
+============================
 
-    >>> environ = dict()
+    >>> from cromlech.sqlalchemy import create_and_register_engine
 
-You may configure connexion through wsgi environnement :
+    >>> user_db =  'sqlite:///%s/users.db' % working_dir
+    >>> store_db = 'sqlite:///%s/store.db' % working_dir
 
-    >>> environ['user_db'] =  'sqlite:///%s/users.db' % working_dir
-    >>> environ['store_db'] = 'sqlite:///%s/store.db' % working_dir
+    >>> engine = create_and_register_engine(user_db, 'Users')
+    >>> engine = create_and_register_engine(store_db, 'Store')
 
 
 Model
-======================
+=====
 
 Let's use declarative extension::
 
@@ -34,11 +34,12 @@ this to the moment when engine will be created. The package provides a method
 for that::
 
    >>> from cromlech.sqlalchemy import deferred_bind
-   >>> deferred_bind(UserBase.metadata, 'user_db')
-    
+   >>> deferred_bind(UserBase.metadata, 'Users')
+
 We can define our SQLAlchemy model::
 
     >>> from sqlalchemy import Column, Integer, String
+
     >>> class User(UserBase):
     ...     __tablename__ = 'test_users'
     ...     id = Column('id', Integer, primary_key=True)
@@ -47,8 +48,9 @@ We can define our SQLAlchemy model::
     ...     def __repr__(self):
     ...         return "User(%d, '%s')" % (self.id, self.name)
 
+
 Controller
-==============
+==========
 
 To do any operation we will have use SQLAlchemySession context manager
 providing an engine name::
@@ -57,7 +59,7 @@ providing an engine name::
 
 Typically first request may create our tables::
 
-    >>> with SQLAlchemySession(environ, 'user_db') as session:
+    >>> with SQLAlchemySession("Users") as session:
     ...     UserBase.metadata.create_all()
     ...     print session.query(User).all()
     []
@@ -71,10 +73,10 @@ Inside the context you can also fetch the session by its configuration name,
 this is convenient from anywhere in the code, eg a fonction::
 
     >>> def add_user(id, name):
-    ...     session = get_session('user_db')
+    ...     session = get_session("Users")
     ...     session.add(User(id=id, name=name))
 
-    >>> with SQLAlchemySession(environ, 'user_db') as session:
+    >>> with SQLAlchemySession("Users") as session:
     ...     add_user(1, 'bob')
     ...     print session.query(User).all()
     [User(1, 'bob')]
@@ -85,7 +87,7 @@ Transaction
 
 For this chapter let's assume we are inside a with SQLAlchemySession clause::
 
-    >>> ctxmanager = SQLAlchemySession(environ, 'user_db')
+    >>> ctxmanager = SQLAlchemySession("Users")
     >>> session = ctxmanager.__enter__()
 
 Transaction are linked to zope transaction using zope.sqlalchemy, all operations
@@ -134,35 +136,35 @@ We can define our SQLAlchemy model::
 
 And bind::
 
-    >>> deferred_bind(StoreBase.metadata, 'store_db')
+    >>> deferred_bind(StoreBase.metadata, 'Store')
 
 Create tables::
 
     >>> with transaction:
-    ...     with SQLAlchemySession(environ, 'store_db') as session:
+    ...     with SQLAlchemySession("Store") as session:
     ...         StoreBase.metadata.create_all()
 
 and an product adder::
 
     >>> def add_product(id, name):
-    ...     session = get_session('store_db')
+    ...     session = get_session('Store')
     ...     session.add(Product(id=id, name=name))
 
 We may do operations in databases using our objects::
 
     >>> with transaction:
-    ...   with SQLAlchemySession(environ, 'store_db') as session:
-    ...     with SQLAlchemySession(environ, 'user_db') as session:
+    ...   with SQLAlchemySession("Store") as session:
+    ...     with SQLAlchemySession("Users") as session:
     ...         add_user(2, 'juan')
     ...         add_product(1, 'table')
 
 It works :
 
-    >>> with SQLAlchemySession(environ, 'user_db') as session:
+    >>> with SQLAlchemySession("Users") as session:
     ...     session.query(User).all()
     [User(1, 'bob'), User(2, 'juan')]
 
-    >>> with SQLAlchemySession(environ, 'store_db') as session:
+    >>> with SQLAlchemySession("Store") as session:
     ...     session.query(Product).all()
     [Product(1, 'table')]
 
@@ -182,10 +184,10 @@ even if it's already initialised::
     ...     def __repr__(self):
     ...         return "Group(%d, '%s')" % (self.id, self.name)
 
-    >>> deferred_bind(GroupBase.metadata, 'user_db')
+    >>> deferred_bind(GroupBase.metadata, "Users")
 
     >>> with transaction:
-    ...     with SQLAlchemySession(environ, 'user_db') as session:
+    ...     with SQLAlchemySession("Users") as session:
     ...         GroupBase.metadata.create_all()
     ...         session.add(Group(id=1, name='them'))
     ...         session.query(Group).all()
@@ -193,21 +195,13 @@ even if it's already initialised::
 
 
 Errors
-=========
+======
 
-Calling an engine that does not exists without a config fails !
+Calling an engine that does not exists without a config fails::
 
-::
-    >>> from cromlech.sqlalchemy.components import get_engine
-
-    >>> get_engine('spam_db')
-    Traceback (most recent call last):
-    ...
-    KeyError: 'No dbengine named spam_db and no config given'
-    >>> get_engine('spam_db', environ)
-    Traceback (most recent call last):
-    ...
-    KeyError: 'No dbengine named spam_db and no config given'
+    >>> from cromlech.sqlalchemy.components import query_engine
+    >>> print query_engine('spam_db')
+    None
 
 
 Unique session
@@ -221,19 +215,20 @@ you don't have to care when it will be initialized, you just use the context
 manager ::
 
     >>> from cromlech.sqlalchemy import SharedSQLAlchemySession
-    >>> with SharedSQLAlchemySession(environ, 'store_db') as session:
+    >>> with SharedSQLAlchemySession("Store") as session:
     ...     the_session = session
     ...     session.query(Product).all()
     [Product(1, 'table')]
 
 session will be reused::
 
-   >>> with SharedSQLAlchemySession(environ, 'store_db') as session:
+   >>> with SharedSQLAlchemySession("Store") as session:
    ...     print session is the_session
    True
 
+
 to phase or not two phase
-===========================
+=========================
 
 You can pass a two_phase boolean argument to activate or not two_phase commit.
 see zope.sqlalchemy. If you do not pass it, two_phase will be set to true for
@@ -242,7 +237,7 @@ mysql and postgre (known supporting database) and false otherwise.
 You may force it however::
 
    >>> with transaction:
-   ...     with SQLAlchemySession(environ, 'store_db', two_phase = True):
+   ...     with SQLAlchemySession("Store", two_phase=True):
    ...         add_product(10, 'chair')
    Traceback (most recent call last):
    ...
