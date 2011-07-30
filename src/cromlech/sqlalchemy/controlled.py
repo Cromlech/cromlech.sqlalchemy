@@ -46,7 +46,7 @@ def deferred_bind(metadata, name):
     if metadata not in metadata_base_registry:
         metadata_base_registry[name].add(metadata)
         engine = query_engine(name)
-        if engine is not None:    
+        if engine is not None:
             metadata.bind = engine.engine
 
 
