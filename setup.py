@@ -1,11 +1,10 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.1a1'
+version = '0.2a1'
 
 install_requires = [
     'setuptools',
-    'cromlech.io',
     'SQLAlchemy',
     'transaction',
     'zope.interface',
@@ -14,7 +13,6 @@ install_requires = [
     ]
 
 tests_require = [
-    'pytest',
     ]
 
 setup(name='cromlech.sqlalchemy',

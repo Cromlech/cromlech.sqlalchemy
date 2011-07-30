@@ -1,8 +1,14 @@
 Changelog
 =========
 
+0.2a1 (2011-07-30)
+------------------
+
+- The context manager and util functions no longer depend on an environ.
+  This allows us to use this package outside of a WSGI stack.
+
+
 0.1a1
--------------------
+-----
 
 - Initial release
-
