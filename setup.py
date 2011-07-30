@@ -18,7 +18,7 @@ tests_require = [
 setup(name='cromlech.sqlalchemy',
       version=version,
       description="Cromlech Web Framework utility methods and components " +
-                  "for application using the SQLAlchemy",
+                  "for applications based on SQLAlchemy.",
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("src", 'cromlech', 'sqlalchemy',
                                          "test_api.txt")).read() + "\n" +

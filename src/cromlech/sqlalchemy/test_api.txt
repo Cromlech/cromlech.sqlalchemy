@@ -83,7 +83,7 @@ this is convenient from anywhere in the code, eg a fonction::
 
 
 Transaction
-=============
+===========
 
 For this chapter let's assume we are inside a with SQLAlchemySession clause::
 
@@ -116,8 +116,9 @@ Let's end our session for now ::
 
    >>> ctxmanager.__exit__(None, None, None)
 
+
 More than one database
-========================
+======================
 
 We can use more than one database, Let's define another
 model in another database:
@@ -168,8 +169,9 @@ It works :
     ...     session.query(Product).all()
     [Product(1, 'table')]
 
+
 More than one metadata
-=======================
+======================
 
 Now we may also bind another metadata to same database, and this work
 even if it's already initialised::
@@ -205,7 +207,7 @@ Calling an engine that does not exists without a config fails::
 
 
 Unique session
-================
+==============
 
 Whenever you know that your application will always associate same db name with
 same DBName, you can setup session once and only once, removing overhead to
