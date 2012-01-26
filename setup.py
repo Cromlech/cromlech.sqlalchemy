@@ -1,12 +1,12 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.2a1'
+version = '0.2'
 
 install_requires = [
     'setuptools',
     'SQLAlchemy',
-    'transaction',
+    'transaction >= 1.2',
     'zope.interface',
     'zope.component',
     'zope.sqlalchemy',

@@ -141,7 +141,9 @@ And bind::
 
 Create tables::
 
-    >>> with transaction:
+    >>> from transaction import manager as transaction_manager
+
+    >>> with transaction_manager:
     ...     with SQLAlchemySession("Store") as session:
     ...         StoreBase.metadata.create_all()
 
@@ -153,7 +155,7 @@ and an product adder::
 
 We may do operations in databases using our objects::
 
-    >>> with transaction:
+    >>> with transaction_manager:
     ...   with SQLAlchemySession("Store") as session:
     ...     with SQLAlchemySession("Users") as session:
     ...         add_user(2, 'juan')
@@ -188,7 +190,7 @@ even if it's already initialised::
 
     >>> deferred_bind(GroupBase.metadata, "Users")
 
-    >>> with transaction:
+    >>> with transaction_manager:
     ...     with SQLAlchemySession("Users") as session:
     ...         GroupBase.metadata.create_all()
     ...         session.add(Group(id=1, name='them'))
@@ -238,7 +240,7 @@ mysql and postgre (known supporting database) and false otherwise.
 
 You may force it however::
 
-   >>> with transaction:
+   >>> with transaction_manager:
    ...     with SQLAlchemySession("Store", two_phase=True):
    ...         add_product(10, 'chair')
    Traceback (most recent call last):
