@@ -15,8 +15,8 @@ Configuration & registration
     >>> user_db =  'sqlite:///%s/users.db' % working_dir
     >>> store_db = 'sqlite:///%s/store.db' % working_dir
 
-    >>> engine = create_and_register_engine(user_db, 'Users')
-    >>> engine = create_and_register_engine(store_db, 'Store')
+    >>> users_engine = create_and_register_engine(user_db, 'Users')
+    >>> store_engine = create_and_register_engine(store_db, 'Store')
 
 
 Model
@@ -27,14 +27,13 @@ Let's use declarative extension::
     >>> from sqlalchemy.ext.declarative import declarative_base
 
     >>> UserBase = declarative_base()
+    >>> users_engine.bind(UserBase)
 
 In SQLAlchemy you would declare wich engine the database is bound to. In our
 case the url will come in environ with the first connection so we deffer
 this to the moment when engine will be created. The package provides a method
 for that::
 
-   >>> from cromlech.sqlalchemy import deferred_bind
-   >>> deferred_bind(UserBase.metadata, 'Users')
 
 We can define our SQLAlchemy model::
 
@@ -42,6 +41,7 @@ We can define our SQLAlchemy model::
 
     >>> class User(UserBase):
     ...     __tablename__ = 'test_users'
+    ...
     ...     id = Column('id', Integer, primary_key=True)
     ...     name = Column('name', String(50))
     ...
@@ -59,7 +59,7 @@ providing an engine name::
 
 Typically first request may create our tables::
 
-    >>> with SQLAlchemySession("Users") as session:
+    >>> with SQLAlchemySession(users_engine) as session:
     ...     UserBase.metadata.create_all()
     ...     print session.query(User).all()
     []
@@ -76,7 +76,7 @@ this is convenient from anywhere in the code, eg a fonction::
     ...     session = get_session("Users")
     ...     session.add(User(id=id, name=name))
 
-    >>> with SQLAlchemySession("Users") as session:
+    >>> with SQLAlchemySession(users_engine) as session:
     ...     add_user(1, 'bob')
     ...     print session.query(User).all()
     [User(1, 'bob')]
@@ -87,7 +87,7 @@ Transaction
 
 For this chapter let's assume we are inside a with SQLAlchemySession clause::
 
-    >>> ctxmanager = SQLAlchemySession("Users")
+    >>> ctxmanager = SQLAlchemySession(users_engine)
     >>> session = ctxmanager.__enter__()
 
 Transaction are linked to zope transaction using zope.sqlalchemy, all operations
@@ -124,6 +124,7 @@ We can use more than one database, Let's define another
 model in another database:
 
     >>> StoreBase = declarative_base()
+    >>> store_engine.bind(StoreBase)
     
 We can define our SQLAlchemy model::
 
@@ -135,16 +136,13 @@ We can define our SQLAlchemy model::
     ...     def __repr__(self):
     ...         return "Product(%d, '%s')" % (self.id, self.name)
 
-And bind::
-
-    >>> deferred_bind(StoreBase.metadata, 'Store')
 
 Create tables::
 
     >>> from transaction import manager as transaction_manager
 
     >>> with transaction_manager:
-    ...     with SQLAlchemySession("Store") as session:
+    ...     with SQLAlchemySession(store_engine) as session:
     ...         StoreBase.metadata.create_all()
 
 and an product adder::
@@ -156,18 +154,18 @@ and an product adder::
 We may do operations in databases using our objects::
 
     >>> with transaction_manager:
-    ...   with SQLAlchemySession("Store") as session:
-    ...     with SQLAlchemySession("Users") as session:
+    ...   with SQLAlchemySession(store_engine) as session:
+    ...     with SQLAlchemySession(users_engine) as session:
     ...         add_user(2, 'juan')
     ...         add_product(1, 'table')
 
 It works :
 
-    >>> with SQLAlchemySession("Users") as session:
+    >>> with SQLAlchemySession(users_engine) as session:
     ...     session.query(User).all()
     [User(1, 'bob'), User(2, 'juan')]
 
-    >>> with SQLAlchemySession("Store") as session:
+    >>> with SQLAlchemySession(store_engine) as session:
     ...     session.query(Product).all()
     [Product(1, 'table')]
 
@@ -179,6 +177,7 @@ Now we may also bind another metadata to same database, and this work
 even if it's already initialised::
 
     >>> GroupBase = declarative_base()
+    >>> users_engine.bind(GroupBase)
 
     >>> class Group(GroupBase):
     ...     __tablename__ = 'test_groups'
@@ -188,10 +187,8 @@ even if it's already initialised::
     ...     def __repr__(self):
     ...         return "Group(%d, '%s')" % (self.id, self.name)
 
-    >>> deferred_bind(GroupBase.metadata, "Users")
-
     >>> with transaction_manager:
-    ...     with SQLAlchemySession("Users") as session:
+    ...     with SQLAlchemySession(users_engine) as session:
     ...         GroupBase.metadata.create_all()
     ...         session.add(Group(id=1, name='them'))
     ...         session.query(Group).all()
@@ -219,14 +216,14 @@ you don't have to care when it will be initialized, you just use the context
 manager ::
 
     >>> from cromlech.sqlalchemy import SharedSQLAlchemySession
-    >>> with SharedSQLAlchemySession("Store") as session:
+    >>> with SharedSQLAlchemySession(store_engine) as session:
     ...     the_session = session
     ...     session.query(Product).all()
     [Product(1, 'table')]
 
 session will be reused::
 
-   >>> with SharedSQLAlchemySession("Store") as session:
+   >>> with SharedSQLAlchemySession(store_engine) as session:
    ...     print session is the_session
    True
 
@@ -241,10 +238,10 @@ mysql and postgre (known supporting database) and false otherwise.
 You may force it however::
 
    >>> with transaction_manager:
-   ...     with SQLAlchemySession("Store", two_phase=True):
+   ...     with SQLAlchemySession(store_engine, two_phase=True):
    ...         add_product(10, 'chair')
    Traceback (most recent call last):
    ...
-   NotImplementedError
+   ValueError: SQL Engine 'Store' : 'sqlite' does not support two phase commits
 
 as sqlite does not support it !

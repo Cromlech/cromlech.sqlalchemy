@@ -2,7 +2,6 @@
 
 import threading
 import transaction
-from cromlech.sqlalchemy.components import query_engine, metadata_base_registry
 from sqlalchemy.orm import sessionmaker, scoped_session
 from zope.sqlalchemy import ZopeTransactionExtension
 
@@ -33,23 +32,6 @@ def get_session(name):
     return None
 
 
-def deferred_bind(metadata, name):
-    """Tells that Metadata must be bind to engine corresponding to
-    database config registered under name
-
-    If dbengine is not yet created,
-    the binding will be done as soon as dbengine will be created
-    """
-    if name not in metadata_base_registry:
-        metadata_base_registry[name] = set()
-
-    if metadata not in metadata_base_registry:
-        metadata_base_registry[name].add(metadata)
-        engine = query_engine(name)
-        if engine is not None:
-            metadata.bind = engine.engine
-
-
 TWO_PHASED = frozenset(('postgre', 'postgresql', 'mysql'))
 
 
@@ -61,7 +43,7 @@ class SQLAlchemySession(object):
     Parameters for connection are taken from wsgi environ under name
     """
 
-    def __init__(self, name, transaction_manager=None, two_phase=None):
+    def __init__(self, engine, transaction_manager=None, two_phase=None):
         """
         If transaction_manager is None we will ask the transaction module
         for the current one.
@@ -69,8 +51,20 @@ class SQLAlchemySession(object):
         If two_phase is none, it will be set to true for mysql and postgre
         false otherwhise.
         """
-        self.name = name
-        self.two_phase = two_phase
+        if engine is None:
+            raise RuntimeError
+
+        if two_phase is None:
+            self.two_phase = engine.engine.dialect.name in TWO_PHASED
+        elif (two_phase is True and
+              not engine.engine.dialect.name in TWO_PHASED):
+            raise ValueError(
+                'SQL Engine %r : %r does not support two phase commits' %
+                (engine.name, engine.engine.dialect.name))
+        else:
+            self.two_phase = bool(two_phase)
+
+        self.engine = engine
         if transaction_manager is None:
             transaction_manager = transaction.manager
         self.tm = transaction_manager
@@ -78,30 +72,20 @@ class SQLAlchemySession(object):
     def __enter__(self):
         """Begin session scope.
         """
-        # Get the engine
-        self.engine = query_engine(self.name)
-        if self.engine is None:
-            raise RuntimeError
-
-        # make a session, we make a scoped session in case we want to
-        # work on same connection later
-        if self.two_phase is None:
-            self.two_phase = self.engine.engine.dialect.name in TWO_PHASED
-
         self.session = scoped_session(sessionmaker(
             bind=self.engine.engine,
             twophase=self.two_phase,
             extension=ZopeTransactionExtension()))
 
         # add to thread
-        set_session(self.name, self.session)
+        set_session(self.engine.name, self.session)
         return self.session
 
     def __exit__(self, type, value, traceback):
         """end session scope
         """
         self.session.flush()
-        set_session(self.name, None)
+        set_session(self.engine.name, None)
 
 
 class SharedSQLAlchemySession(SQLAlchemySession):
@@ -110,10 +94,10 @@ class SharedSQLAlchemySession(SQLAlchemySession):
     so session is opened once
     """
 
-    def __init__(self, name, *args, **kwargs):
-        self.session = get_session(name)
+    def __init__(self, engine, *args, **kwargs):
+        self.session = get_session(engine.name)
         if self.session is None:
-            SQLAlchemySession.__init__(self, name, *args, **kwargs)
+            SQLAlchemySession.__init__(self, engine, *args, **kwargs)
 
     def __enter__(self):
         if self.session is not None:

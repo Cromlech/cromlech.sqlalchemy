@@ -2,12 +2,13 @@
 
 import sqlalchemy
 from zope.interface import implements, Interface, Attribute
-from zope.component import getGlobalSiteManager, queryUtility
+from zope.component import getSiteManager, queryUtility
 
 
 class IEngineServer(Interface):
     """An engine server just serve a configured sqlAlchemy engine
     """
+    name = Attribute("The associated engine")
     engine = Attribute("The SQLAlchemy engine")
 
 
@@ -16,36 +17,36 @@ class EngineServer(object):
     """
     implements(IEngineServer)
 
-    def __init__(self, engine):
+    def __init__(self, engine, name=''):
+        self.name = name
         self.engine = engine
+
+    def bind(self, base):
+        base.metadata.bind = self.engine
 
 
 def create_engine(url, name):
     """Creates an engine server and binds all known metadatas to it.
     The created engine is then returned, for convenience use.
     """
-    engine = sqlalchemy.create_engine(url, convert_unicode=True)
-    # bind metadata to this engine
-    for m in metadata_base_registry.get(name, []):
-        m.bind = engine
+    engine = EngineServer(
+        sqlalchemy.create_engine(url, convert_unicode=True), name=name)
     return engine
 
 
-def register_engine(engine, name):
-    gsm = getGlobalSiteManager()
-    gsm.registerUtility(EngineServer(engine), IEngineServer, name=name)
+def register_engine(engine):
+    assert IEngineServer.providedBy(engine)
+    gsm = getSiteManager()
+    name = engine.name  # we use the explicitly set name or ''
+    gsm.registerUtility(engine, IEngineServer, name=name)
 
 
 def create_and_register_engine(url, name):
     engine = create_engine(url, name)
-    register_engine(engine, name)
+    register_engine(engine)
     return engine
 
 
 def query_engine(name):
     # A ComponentLookupError is raise in case of problem.
     return queryUtility(IEngineServer, name=name)
-
-
-# registration of metadata with engines
-metadata_base_registry = dict()

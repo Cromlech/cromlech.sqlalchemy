@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.3 (2012-04-29)
+----------------
+
+- Majors changes : we no longer support deferred binding. The context 
+  managers now take directly the engine, which is now an `Engine` object.
+  This makes the implementation much more straightforward.
+
+
 0.2 (2012-01-26)
 ----------------
 
