@@ -2,7 +2,6 @@
 
 import sqlalchemy
 from zope.interface import implements, Interface, Attribute
-from zope.component import getSiteManager, queryUtility
 
 
 class IEngineServer(Interface):
@@ -32,21 +31,3 @@ def create_engine(url, name):
     engine = EngineServer(
         sqlalchemy.create_engine(url, convert_unicode=True), name=name)
     return engine
-
-
-def register_engine(engine):
-    assert IEngineServer.providedBy(engine)
-    gsm = getSiteManager()
-    name = engine.name  # we use the explicitly set name or ''
-    gsm.registerUtility(engine, IEngineServer, name=name)
-
-
-def create_and_register_engine(url, name):
-    engine = create_engine(url, name)
-    register_engine(engine)
-    return engine
-
-
-def query_engine(name):
-    # A ComponentLookupError is raise in case of problem.
-    return queryUtility(IEngineServer, name=name)

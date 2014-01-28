@@ -1,15 +1,14 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.3'
+version = '1.0-crom'
 
 install_requires = [
     'setuptools',
     'SQLAlchemy',
     'transaction >= 1.2',
     'zope.interface',
-    'zope.component',
-    'zope.sqlalchemy',
+    'zope.sqlalchemy >= 0.7',
     ]
 
 tests_require = [
