@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = '1.0-crom'
+version = '1.0+crom'
 
 install_requires = [
     'setuptools',
