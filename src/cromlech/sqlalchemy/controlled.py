@@ -4,6 +4,7 @@ import threading
 import transaction
 from sqlalchemy.orm import sessionmaker, scoped_session
 from zope.sqlalchemy import ZopeTransactionExtension
+from sqlalchemy.orm.query import Query
 
 
 class SessionInfo(threading.local):
@@ -43,7 +44,8 @@ class SQLAlchemySession(object):
     Parameters for connection are taken from wsgi environ under name
     """
 
-    def __init__(self, engine, transaction_manager=None, two_phase=None):
+    def __init__(self, engine, transaction_manager=None, two_phase=None,
+                 query_cls=Query):
         """
         If transaction_manager is None we will ask the transaction module
         for the current one.
@@ -68,6 +70,7 @@ class SQLAlchemySession(object):
         if transaction_manager is None:
             transaction_manager = transaction.manager
         self.tm = transaction_manager
+        self.query_cls = query_cls
 
     def __enter__(self):
         """Begin session scope.
@@ -75,6 +78,7 @@ class SQLAlchemySession(object):
         self.session = scoped_session(sessionmaker(
             bind=self.engine.engine,
             twophase=self.two_phase,
+            query_cls=self.query_cls,
             extension=ZopeTransactionExtension()))
 
         # add to thread
