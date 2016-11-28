@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import sqlalchemy
-from zope.interface import implements, Interface, Attribute
+from zope.interface import implementer, Interface, Attribute
 
 
 class IEngineServer(Interface):
@@ -11,10 +11,10 @@ class IEngineServer(Interface):
     engine = Attribute("The SQLAlchemy engine")
 
 
+@implementer(IEngineServer)
 class EngineServer(object):
     """Serves a SQLAlchemy engine.
     """
-    implements(IEngineServer)
 
     def __init__(self, engine, name=''):
         self.name = name
