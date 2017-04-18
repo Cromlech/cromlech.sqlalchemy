@@ -10,13 +10,13 @@ We get a temporary dir to place our databases::
 Configuration & registration
 ============================
 
-    >>> from cromlech.sqlalchemy import create_and_register_engine
+    >>> from cromlech.sqlalchemy import create_engine
 
     >>> user_db =  'sqlite:///%s/users.db' % working_dir
     >>> store_db = 'sqlite:///%s/store.db' % working_dir
 
-    >>> users_engine = create_and_register_engine(user_db, 'Users')
-    >>> store_engine = create_and_register_engine(store_db, 'Store')
+    >>> users_engine = create_engine(user_db, 'Users')
+    >>> store_engine = create_engine(store_db, 'Store')
 
 
 Model
@@ -193,16 +193,6 @@ even if it's already initialised::
     ...         session.add(Group(id=1, name='them'))
     ...         session.query(Group).all()
     [Group(1, 'them')]
-
-
-Errors
-======
-
-Calling an engine that does not exists without a config fails::
-
-    >>> from cromlech.sqlalchemy.components import query_engine
-    >>> print query_engine('spam_db')
-    None
 
 
 Unique session
