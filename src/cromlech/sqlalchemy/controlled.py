@@ -59,7 +59,7 @@ class SQLAlchemySession(object):
         if two_phase is None:
             self.two_phase = engine.engine.dialect.name in TWO_PHASED
         elif (two_phase is True and
-              not engine.engine.dialect.name in TWO_PHASED):
+              engine.engine.dialect.name not in TWO_PHASED):
             raise ValueError(
                 'SQL Engine %r : %r does not support two phase commits' %
                 (engine.name, engine.engine.dialect.name))
