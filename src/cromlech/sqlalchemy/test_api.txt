@@ -4,19 +4,19 @@ Test setup
 We get a temporary dir to place our databases::
 
     >>> import tempfile
-    >>> working_dir = tempfile.mkdtemp('cromlech-sqlalchemy-test')
+    >>> working_dir = getfixture('tmpdir')
 
 
 Configuration & registration
 ============================
 
-    >>> from cromlech.sqlalchemy import create_and_register_engine
+    >>> from cromlech.sqlalchemy import create_engine
 
     >>> user_db =  'sqlite:///%s/users.db' % working_dir
     >>> store_db = 'sqlite:///%s/store.db' % working_dir
 
-    >>> users_engine = create_and_register_engine(user_db, 'Users')
-    >>> store_engine = create_and_register_engine(store_db, 'Store')
+    >>> users_engine = create_engine(user_db, 'Users')
+    >>> store_engine = create_engine(store_db, 'Store')
 
 
 Model
@@ -61,7 +61,7 @@ Typically first request may create our tables::
 
     >>> with SQLAlchemySession(users_engine) as session:
     ...     UserBase.metadata.create_all()
-    ...     print session.query(User).all()
+    ...     print(session.query(User).all())
     []
 
 Transaction of database is ruled by the general transaction package::
@@ -78,7 +78,7 @@ this is convenient from anywhere in the code, eg a fonction::
 
     >>> with SQLAlchemySession(users_engine) as session:
     ...     add_user(1, 'bob')
-    ...     print session.query(User).all()
+    ...     print(session.query(User).all())
     [User(1, 'bob')]
 
 
@@ -95,7 +95,7 @@ above are not yet commited. Let's abort to see bob is not present no more::
 
     >>> transaction.abort()
     
-    >>> print session.query(User).all()
+    >>> print(session.query(User).all())
     []
 
 Now add it again an commit so that it's ok::
@@ -103,13 +103,13 @@ Now add it again an commit so that it's ok::
     >>> transaction.commit()
     >>> add_user(1, 'bob')
     >>> transaction.commit()
-    >>> print session.query(User).all()
+    >>> print(session.query(User).all())
     [User(1, 'bob')]
 
 Now we really are in a new transaction::
 
     >>> transaction.abort()
-    >>> print session.query(User).all()
+    >>> print(session.query(User).all())
     [User(1, 'bob')]
 
 Let's end our session for now ::
@@ -195,16 +195,6 @@ even if it's already initialised::
     [Group(1, 'them')]
 
 
-Errors
-======
-
-Calling an engine that does not exists without a config fails::
-
-    >>> from cromlech.sqlalchemy.components import query_engine
-    >>> print query_engine('spam_db')
-    None
-
-
 Unique session
 ==============
 
@@ -224,7 +214,7 @@ manager ::
 session will be reused::
 
    >>> with SharedSQLAlchemySession(store_engine) as session:
-   ...     print session is the_session
+   ...     print(session is the_session)
    True
 
 
