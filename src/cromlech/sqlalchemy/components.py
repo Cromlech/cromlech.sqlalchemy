@@ -30,7 +30,7 @@ def create_engine(url, name):
     The created engine is then returned, for convenience use.
     """
     engine = EngineServer(
-        sqlalchemy.create_engine(url, convert_unicode=True), name=name)
+        sqlalchemy.create_engine(url, convert_unicode=True, query_cache_size=1200, echo=False), name=name)
     return engine
 
 

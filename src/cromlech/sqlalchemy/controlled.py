@@ -3,7 +3,7 @@
 import threading
 import transaction
 from sqlalchemy.orm import sessionmaker, scoped_session
-from zope.sqlalchemy import ZopeTransactionExtension
+from zope.sqlalchemy import register # ZopeTransactionExtension
 
 
 class SessionInfo(threading.local):
@@ -74,8 +74,8 @@ class SQLAlchemySession(object):
         """
         self.session = scoped_session(sessionmaker(
             bind=self.engine.engine,
-            twophase=self.two_phase,
-            extension=ZopeTransactionExtension()))
+            twophase=self.two_phase))
+        register(self.session)
 
         # add to thread
         set_session(self.engine.name, self.session)
